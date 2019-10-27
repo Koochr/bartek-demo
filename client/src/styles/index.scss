@@ -18,7 +18,8 @@ body {
 }
 
 .validation-error {
-  color: red;
+  color: #ff4d4f;
+  text-align: right;
   height: 20px;
 }
 
@@ -30,20 +31,18 @@ body {
   margin: 10px 0;
 }
 
-.switch-text {
-  margin-right: 10px;
-}
-
-.switch-wrapper {
-  display: flex;
-}
-
 .buttons-wrapper {
   display: flex;
   justify-content: center;
+  margin-bottom: 10px;
 }
 
-.success-button-wrapper {
+.or {
+  height: 32px;
+  line-height: 32px;
+}
+
+.button-wrapper {
   display: flex;
   justify-content: center;
   margin: 20px;
@@ -51,4 +50,9 @@ body {
 
 .success-text {
   text-align: center;
+}
+
+.container-inner {
+  max-height: 320px;
+  overflow-y: auto;
 }

@@ -1,20 +1,25 @@
 import React, {FunctionComponent, useState, Fragment, ChangeEvent} from 'react'
-import {Button, Input, Switch} from 'antd'
+import {Button, Input} from 'antd'
 import {useSendInvitationsMutation} from './generated'
 
 const App: FunctionComponent = () => {
 	const emailRegex = /[\w.]+@\w+\.\w+/
-	const singleInputShape = {value: '', validation: false}
+	const delimiterRegex = /,|\n|;|\t/
+	const initialInputValues = [
+		{value: '', validation: true},
+		{value: '', validation: true},
+		{value: '', validation: true}
+	]
 
 	const [sendInvitations] = useSendInvitationsMutation()
-	const [emailsSent, setEmailsSent] = useState<string[] | []>([])
+	const [emailsSent, setEmailsSent] = useState('')
 	const [isMultiple, setIsMultiple] = useState(false)
-	const [singleInputs, setSingleInputs] = useState([singleInputShape])
+	const [singleInputs, setSingleInputs] = useState(initialInputValues)
 	const [multiInput, setMultiInput] = useState('')
 	const [multiInputValidation, setMultiInputValidation] = useState(false)
 
 	const handleInputAdd = () => {
-		setSingleInputs([...singleInputs, singleInputShape])
+		setSingleInputs([...singleInputs, {value: '', validation: true}])
 	}
 
 	const handleInputRemove = (index: number) => {
@@ -32,43 +37,62 @@ const App: FunctionComponent = () => {
 
 	const handleMultiInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
 		setMultiInput(e.target.value)
-		const multiInputEmails = multiInput.split(',')
+		const multiInputEmails = multiInput.split(delimiterRegex).filter(email => email !== '')
 		setMultiInputValidation(
 			multiInputEmails.length > 0
       && multiInputEmails.reduce((acc: boolean, cur) => acc && emailRegex.test(cur), true)
 		)
 	}
 
+	const handleSwitchToMulti = () => {
+		setMultiInput(singleInputs.filter(item => !!item.value).map(item => item.value).join(',\n'))
+		setIsMultiple(true)
+		setMultiInputValidation(singleInputs.reduce((acc: boolean, cur) => acc && cur.validation, true))
+	}
+
 	const handleSingleSubmit = () => {
-		sendInvitations({variables: {emails: singleInputs.map(input => input.value)}})
+		const updatedSingleInputs = singleInputs
+			.filter(item => !!item.value)
+			.map(item => ({...item, validation: emailRegex.test(item.value)}))
+
+		if(!updatedSingleInputs.reduce((acc: boolean, cur) => acc && cur.validation, true)) {
+			setSingleInputs(updatedSingleInputs)
+			return
+		}
+		sendInvitations({variables: {emails: updatedSingleInputs.map(input => input.value)}})
 			.then(res => {
-				setSingleInputs([singleInputShape])
+				setSingleInputs(initialInputValues)
 				setMultiInput('')
 				setIsMultiple(false)
-				setEmailsSent(res!.data!.sendInvitations.emails)
+				setEmailsSent(res!.data!.sendInvitations.emails.length > 0
+					? `Emails were successfully sent: ${res!.data!.sendInvitations.emails.join(', ')}`
+					: 'No emails were sent. This can happen if all of the emails were already sent in the past')
 			})
 	}
 
 	const handleMultiSubmit = () => {
-		sendInvitations({variables: {emails: multiInput.split(',')}})
+		if (!multiInputValidation) return
+		sendInvitations({variables: {emails: multiInput.split(delimiterRegex).filter(email => email !== '')}})
 			.then(res => {
-				setSingleInputs([singleInputShape])
+				setSingleInputs(initialInputValues)
 				setMultiInput('')
 				setIsMultiple(false)
-				setEmailsSent(res!.data!.sendInvitations.emails)
+				setEmailsSent(res!.data!.sendInvitations.emails.length > 0
+					? `Emails were successfully sent: ${res!.data!.sendInvitations.emails.join(', ')}`
+					: 'No emails were sent. This can happen if all of the emails were already sent in the past')
 			})
 	}
 
-	if (emailsSent.length > 0) {
+	if (emailsSent) {
 		return (
 			<div className='container'>
 				<div className='success-text'>
-					{`Emails successfully sent: ${emailsSent.join(', ')}`}
+					{emailsSent}
 				</div>
-				<div className='success-button-wrapper'>
+				<div className='button-wrapper'>
 					<Button
 						type='primary'
-						onClick={() => {setEmailsSent([])}}
+						onClick={() => {setEmailsSent('')}}
 					>
             Go back
 					</Button>
@@ -79,71 +103,69 @@ const App: FunctionComponent = () => {
 
 	return (
 		<div className='container'>
-			<div className='switch-wrapper'>
-				<p className='switch-text'>
-          Add many at once
-				</p>
-				<Switch checked={isMultiple} onChange={setIsMultiple}/>
-			</div>
+
 			{isMultiple
 				? (
 					<Fragment>
+            Enter multiple email addresses separated by commas
 						<Input.TextArea
 							rows={5}
 							value={multiInput}
 							onChange={handleMultiInputChange}
 						/>
 						<div className='validation-error'>
-							{!multiInputValidation && 'Please enter multiple valid email addresses, separated by comma'}
+							{!multiInputValidation && 'Please enter multiple valid email addresses'}
 						</div>
-						<Button
-							onClick={handleMultiSubmit}
-							disabled={!multiInputValidation}
-							type='primary'
-						>
-              Submit
-						</Button>
 					</Fragment>
 				)
 				: <Fragment>
-					{(singleInputs.map((input, index) => (
-						<div className='input-wrapper-outer' key={index}>
-							<div className='input-wrapper'>
-								<Input
-									value={input.value}
-									onChange={e => {handleSingleInputChange(e.target.value, index)}}
-								/>
-								<Button
-									onClick={() => {handleInputRemove(index)}}
-									type='danger'
-									ghost
-									disabled={index === 0}
-								>
-                  Remove
-								</Button>
+					<div className='container-inner'>
+						{(singleInputs.map((input, index) => (
+							<div className='input-wrapper-outer' key={index}>
+								<div className='input-wrapper'>
+									<Input
+										value={input.value}
+										onChange={e => {handleSingleInputChange(e.target.value, index)}}
+									/>
+									<Button
+										onClick={() => {handleInputRemove(index)}}
+										type='danger'
+										ghost
+										disabled={index === 0}
+									>
+                    X
+									</Button>
+								</div>
+								<div className='validation-error'>
+									{!input.validation && 'Invalid email address'}
+								</div>
 							</div>
-							<div className='validation-error'>
-								{!input.validation && 'Please enter a valid email'}
-							</div>
-						</div>
-					)))}
+						)))}
+					</div>
 					<div className='buttons-wrapper'>
 						<Button
 							onClick={handleInputAdd}
-							disabled={singleInputs.length > 5}
 							type='link'
 						>
               Add another
 						</Button>
+						<div className='or'>
+              or
+						</div>
 						<Button
-							onClick={handleSingleSubmit}
-							disabled={!singleInputs.reduce((acc, cur) => acc && cur.validation, true)}
-							type='primary'
+							onClick={handleSwitchToMulti}
+							type='link'
 						>
-              Submit
+              Add many at once
 						</Button>
 					</div>
 				</Fragment>}
+			<Button
+				onClick={isMultiple ? handleMultiSubmit : handleSingleSubmit}
+				type='primary'
+			>
+        Send invites
+			</Button>
 		</div>
 	)
 }
