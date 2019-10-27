@@ -3,8 +3,9 @@ import {Button, Input} from 'antd'
 import {useSendInvitationsMutation} from './generated'
 
 const App: FunctionComponent = () => {
+
 	const emailRegex = /[\w.]+@\w+\.\w+/
-	const delimiterRegex = /,|\n|;|\t/
+	const delimiterRegex = /[:,\n;\t]/
 	const initialInputValues = [
 		{value: '', validation: true},
 		{value: '', validation: true},
@@ -54,7 +55,6 @@ const App: FunctionComponent = () => {
 		const updatedSingleInputs = singleInputs
 			.filter(item => !!item.value)
 			.map(item => ({...item, validation: emailRegex.test(item.value)}))
-
 		if(!updatedSingleInputs.reduce((acc: boolean, cur) => acc && cur.validation, true)) {
 			setSingleInputs(updatedSingleInputs)
 			return
@@ -103,7 +103,6 @@ const App: FunctionComponent = () => {
 
 	return (
 		<div className='container'>
-
 			{isMultiple
 				? (
 					<Fragment>
@@ -131,7 +130,7 @@ const App: FunctionComponent = () => {
 										onClick={() => {handleInputRemove(index)}}
 										type='danger'
 										ghost
-										disabled={index === 0}
+										disabled={singleInputs.length === 1}
 									>
                     X
 									</Button>
