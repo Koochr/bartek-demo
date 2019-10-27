@@ -1,0 +1,13 @@
+type Invitation {
+  emails: [String!]!
+}
+
+type Query {
+  hello: String!
+}
+
+type Mutation {
+  sendInvitations (
+    emails: [String!]!
+  ): Invitation!
+}

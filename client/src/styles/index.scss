@@ -1,0 +1,54 @@
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.container {
+  width: 400px;
+  margin-top: 200px;
+}
+
+.validation-error {
+  color: red;
+  height: 20px;
+}
+
+.input-wrapper {
+  display: flex;
+}
+
+.input-wrapper-outer {
+  margin: 10px 0;
+}
+
+.switch-text {
+  margin-right: 10px;
+}
+
+.switch-wrapper {
+  display: flex;
+}
+
+.buttons-wrapper {
+  display: flex;
+  justify-content: center;
+}
+
+.success-button-wrapper {
+  display: flex;
+  justify-content: center;
+  margin: 20px;
+}
+
+.success-text {
+  text-align: center;
+}

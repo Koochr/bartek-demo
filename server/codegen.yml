@@ -1,0 +1,8 @@
+overwrite: true
+schema: "datamodel.graphql"
+generates:
+  src/generated/index.ts:
+    config:
+      noNamespaces: true
+    plugins:
+      - typescript

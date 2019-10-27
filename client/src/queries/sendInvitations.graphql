@@ -1,0 +1,5 @@
+mutation sendInvitations($emails: [String!]!) {
+  sendInvitations(emails: $emails) {
+    emails
+  }
+}
