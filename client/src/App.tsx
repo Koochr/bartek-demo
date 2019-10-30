@@ -1,23 +1,38 @@
-import React, {FunctionComponent, useState, Fragment, ChangeEvent} from 'react'
+import React, {FunctionComponent, useState, Fragment, ChangeEvent, useRef, useEffect, MutableRefObject} from 'react'
 import {Button, Input} from 'antd'
 import {useSendInvitationsMutation} from './generated'
 
+const usePrevious = <T, >(value: T): T => {
+	const ref = useRef<T>()
+	useEffect(() => {
+		ref.current = value
+	})
+	return (ref as MutableRefObject<T>).current
+}
+
 const App: FunctionComponent = () => {
 
-	const emailRegex = /[\w.]+@\w+\.\w+/
+	const emailRegex = /^\s*[\w.]+@\w+\.\w+\s*$/
 	const delimiterRegex = /[:,\n;\t]/
-	const initialInputValues = [
-		{value: '', validation: true},
-		{value: '', validation: true},
-		{value: '', validation: true}
-	]
+	const initialInputValues = [{value: '', validation: true}]
 
 	const [sendInvitations] = useSendInvitationsMutation()
+
 	const [emailsSent, setEmailsSent] = useState('')
 	const [isMultiple, setIsMultiple] = useState(false)
+
 	const [singleInputs, setSingleInputs] = useState(initialInputValues)
+
 	const [multiInput, setMultiInput] = useState('')
 	const [multiInputValidation, setMultiInputValidation] = useState(false)
+
+	const singleInputsRefs = useRef<Input[]>([])
+	const prevSingleInputs = usePrevious(singleInputs)
+	useEffect(() => {
+		if (prevSingleInputs && (prevSingleInputs!.length < singleInputs.length)) {
+			singleInputsRefs.current[singleInputs.length - 1].focus()
+		}
+	}, [prevSingleInputs, singleInputs.length])
 
 	const handleInputAdd = () => {
 		setSingleInputs([...singleInputs, {value: '', validation: true}])
@@ -30,15 +45,28 @@ const App: FunctionComponent = () => {
 	const handleSingleInputChange = (value: string, index: number) => {
 		const updatedSingleInputs = [...singleInputs]
 		updatedSingleInputs[index] = {
-			value,
-			validation: emailRegex.test(value)
+			...updatedSingleInputs[index],
+			value
 		}
 		setSingleInputs(updatedSingleInputs)
 	}
 
+	const validateSingleInputChange = (index: number) => {
+		const updatedSingleInputs = [...singleInputs]
+		updatedSingleInputs[index] = {
+			...updatedSingleInputs[index],
+			validation: !updatedSingleInputs[index].value || emailRegex.test(updatedSingleInputs[index].value)
+		}
+		setSingleInputs(updatedSingleInputs)
+	}
+
+	const handleEnterPress = (index: number) => {
+		index === singleInputs.length - 1 ? handleInputAdd() : singleInputsRefs.current[index + 1].focus()
+	}
+
 	const handleMultiInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
 		setMultiInput(e.target.value)
-		const multiInputEmails = multiInput.split(delimiterRegex).filter(email => email !== '')
+		const multiInputEmails = e.target.value.split(delimiterRegex).filter(email => email !== '')
 		setMultiInputValidation(
 			multiInputEmails.length > 0
       && multiInputEmails.reduce((acc: boolean, cur) => acc && emailRegex.test(cur), true)
@@ -51,9 +79,15 @@ const App: FunctionComponent = () => {
 		setMultiInputValidation(singleInputs.reduce((acc: boolean, cur) => acc && cur.validation, true))
 	}
 
+	const handleSwitchToSingle = () => {
+		setMultiInput('')
+		setMultiInputValidation(false)
+		setIsMultiple(false)
+	}
+
 	const handleSingleSubmit = () => {
 		const updatedSingleInputs = singleInputs
-			.filter(item => !!item.value)
+			.filter((item, index) => !!item.value || index === 0)
 			.map(item => ({...item, validation: emailRegex.test(item.value)}))
 		if(!updatedSingleInputs.reduce((acc: boolean, cur) => acc && cur.validation, true)) {
 			setSingleInputs(updatedSingleInputs)
@@ -101,70 +135,87 @@ const App: FunctionComponent = () => {
 		)
 	}
 
+	const renderSingleInput = () => (
+		<Fragment>
+			<div className='container-inner'>
+				{(singleInputs.map((input, index) => (
+					<div className='input-wrapper-outer' key={index}>
+						<div className='input-wrapper'>
+							<Input
+								ref={ref => singleInputsRefs.current[index] = ref!}
+								value={input.value}
+								onChange={e => {handleSingleInputChange(e.target.value, index)}}
+								placeholder="name@company.com"
+								onPressEnter={() => {handleEnterPress(index)}}
+								onBlur={() => {validateSingleInputChange(index)}}
+							/>
+							<Button
+								onClick={() => {handleInputRemove(index)}}
+								type='danger'
+								ghost
+								disabled={singleInputs.length === 1}
+							>
+                X
+							</Button>
+						</div>
+						<div className='validation-error'>
+							{!input.validation && 'Invalid email address'}
+						</div>
+					</div>
+				)))}
+			</div>
+			<div className='buttons-wrapper'>
+				<Button
+					onClick={handleInputAdd}
+					type='link'
+				>
+          Add another
+				</Button>
+				<div className='or'>
+          or
+				</div>
+				<Button
+					onClick={handleSwitchToMulti}
+					type='link'
+				>
+          Add many at once
+				</Button>
+			</div>
+		</Fragment>
+	)
+
+	const renderMultipleInput = () => (
+		<Fragment>
+      Enter multiple email addresses separated by commas
+			<Input.TextArea
+				rows={5}
+				value={multiInput}
+				onChange={handleMultiInputChange}
+				placeholder="name@company.com, name@company.com, name@company.com"
+			/>
+			<div className='validation-error'>
+				{!multiInputValidation && 'Please enter multiple valid email addresses'}
+			</div>
+		</Fragment>
+	)
+
 	return (
 		<div className='container'>
-			{isMultiple
-				? (
-					<Fragment>
-            Enter multiple email addresses separated by commas
-						<Input.TextArea
-							rows={5}
-							value={multiInput}
-							onChange={handleMultiInputChange}
-						/>
-						<div className='validation-error'>
-							{!multiInputValidation && 'Please enter multiple valid email addresses'}
-						</div>
-					</Fragment>
-				)
-				: <Fragment>
-					<div className='container-inner'>
-						{(singleInputs.map((input, index) => (
-							<div className='input-wrapper-outer' key={index}>
-								<div className='input-wrapper'>
-									<Input
-										value={input.value}
-										onChange={e => {handleSingleInputChange(e.target.value, index)}}
-									/>
-									<Button
-										onClick={() => {handleInputRemove(index)}}
-										type='danger'
-										ghost
-										disabled={singleInputs.length === 1}
-									>
-                    X
-									</Button>
-								</div>
-								<div className='validation-error'>
-									{!input.validation && 'Invalid email address'}
-								</div>
-							</div>
-						)))}
-					</div>
-					<div className='buttons-wrapper'>
-						<Button
-							onClick={handleInputAdd}
-							type='link'
-						>
-              Add another
-						</Button>
-						<div className='or'>
-              or
-						</div>
-						<Button
-							onClick={handleSwitchToMulti}
-							type='link'
-						>
-              Add many at once
-						</Button>
-					</div>
-				</Fragment>}
-			<Button
-				onClick={isMultiple ? handleMultiSubmit : handleSingleSubmit}
-				type='primary'
-			>
-        Send invites
-			</Button>
+			{isMultiple ? renderMultipleInput() : renderSingleInput()}
+			<div className="submit-buttons-wrapper">
+				<Button
+					onClick={isMultiple ? handleMultiSubmit : handleSingleSubmit}
+					type='primary'
+				>
+          Send invites
+				</Button>
+				{isMultiple && <Button
+					onClick={handleSwitchToSingle}
+					type='default'
+				>
+          Cancel
+				</Button>}
+			</div>
 		</div>
 	)
 }

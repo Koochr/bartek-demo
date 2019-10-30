@@ -37,6 +37,11 @@ body {
   margin-bottom: 10px;
 }
 
+.submit-buttons-wrapper {
+  display: flex;
+  justify-content: space-around;
+}
+
 .or {
   height: 32px;
   line-height: 32px;
